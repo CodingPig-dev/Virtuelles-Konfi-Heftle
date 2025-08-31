@@ -19,3 +19,4 @@ Der Quellcode steht unter der [Apache License, Version 2.0](LICENSE).
 ---
 
 © 2024 CodingPig-dev
+Bildquelle: Pixabay (https://pixabay.com)

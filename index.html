@@ -413,19 +413,26 @@
             qrCodeSuccessCallback(value);
         };
         function qrCodeSuccessCallback(decodedText) {
-            let value = Number(decodedText);
-            let stempel = Number(localStorage.getItem('Stempel')) || 0;
-            let newStempel = stempel + value;
-            localStorage.setItem('Stempel', newStempel);
-            renderStempel();
-            setTodayDatum(newStempel);
-            console.log('QR-Code erkannt: ' + decodedText + '\nNeuer Wert: ' + newStempel);
-            qrOverlay.style.display = 'none';
-            qrError.textContent = '';
-            if (html5QrCode) {
-                html5QrCode.stop().catch(()=>{});
-            }
-        }
+  const intPattern = /^[+-]?\d+$/;
+  if (!intPattern.test(decodedText)) return;
+
+  const value = Number(decodedText);
+  const stempel = Number(localStorage.getItem('Stempel')) || 0;
+  const newStempel = stempel + value;
+  localStorage.setItem('Stempel', newStempel);
+
+  renderStempel();
+  setTodayDatum(newStempel);
+
+  console.log(
+    `QR-Code erkannt: ${decodedText}\nNeuer Stempel-Wert: ${newStempel}`
+  );
+
+  qrOverlay.style.display = 'none';
+  if (html5QrCode) {
+    html5QrCode.stop().catch(() => {});
+  }
+}
         window.clearStempel = function() {
             localStorage.removeItem('Stempel');
             for(let i=1;i<=32;i++) localStorage.removeItem('datum_' + i);

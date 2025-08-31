@@ -1,0 +1,448 @@
+<!--
+    Copyright 2024 CodingPig-dev
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Verwendete Bibliothek:
+    html5-qrcode (MIT-Lizenz)
+    https://github.com/mebjas/html5-qrcode
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Virtuelles Konfi-Heftle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #f9f9f9;
+            --bg-dark: #181818;
+            --text-light: #222;
+            --text-dark: #eee;
+            --primary: #4f8cff;
+            --border: #d0d0d0;
+            --table-bg: #fff;
+            --table-bg-dark: #222;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        body.dark {
+            background: var(--bg-dark);
+            color: var(--text-dark);
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 8px 40px 8px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
+        }
+        .mode-switch {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .switch-label {
+            margin-right: 8px;
+            font-size: 1rem;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #ccc;
+            border-radius: 28px;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .4s;
+        }
+        input:checked + .slider {
+            background: var(--primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        .tables-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+            justify-content: center;
+        }
+        .tables-row table {
+            background: var(--table-bg);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            min-width: 260px;
+            max-width: 320px;
+            margin-bottom: 0;
+            transition: background 0.3s;
+        }
+        body.dark .tables-row table {
+            background: var(--table-bg-dark);
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 10px 6px;
+            text-align: center;
+            font-size: 1rem;
+        }
+        tr.empty-row td {
+            height: 60px;
+            background: #f3f6fa;
+        }
+        body.dark tr.empty-row td {
+            background: #222;
+        }
+        .stempel-cell img {
+            max-width: 40px;
+            max-height: 40px;
+            display: block;
+            margin: 0 auto;
+        }
+        .datum-input {
+            width: 90%;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 1rem;
+            background: #f7f7f7;
+            color: var(--text-light);
+            transition: background 0.3s, color 0.3s;
+        }
+        body.dark .datum-input {
+            background: #222;
+            color: var(--text-dark);
+            border: 1px solid #444;
+        }
+        #scanBtn {
+            display: block;
+            margin: 24px auto 32px auto;
+            padding: 18px 48px;
+            font-size: 1.5rem;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(90deg, #4f8cff 0%, #2566d6 100%);
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+            font-weight: 600;
+            letter-spacing: 1px;
+            transition: background 0.2s, transform 0.2s;
+            min-width: 220px;
+        }
+        #scanBtn:hover {
+            background: linear-gradient(90deg, #2566d6 0%, #4f8cff 100%);
+            transform: scale(1.07);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+        }
+        @media (max-width: 900px) {
+            .container {
+                max-width: 100%;
+                padding: 12px 2px 24px 2px;
+            }
+            .tables-row {
+                gap: 16px;
+            }
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.3rem;
+            }
+            .tables-row {
+                flex-direction: column;
+                gap: 24px;
+            }
+            .tables-row table {
+                min-width: 98vw;
+                max-width: 98vw;
+            }
+            #closeOverlay {
+                min-width: 90vw;
+                font-size: 1.2rem;
+                padding: 16px 0;
+            }
+            #scanBtn {
+                min-width: 90vw;
+                font-size: 1.2rem;
+                padding: 16px 0;
+            }
+        }
+        #qrOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 0;
+        }
+        #qr-reader {
+            width: 90vw;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        #qr-error {
+            color: #fff;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+        #closeOverlay {
+            margin-top: 32px;
+            padding: 18px 48px;
+            font-size: 1.5rem;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(90deg, #4f8cff 0%, #2566d6 100%);
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+            font-weight: 600;
+            letter-spacing: 1px;
+            transition: background 0.2s, transform 0.2s;
+            min-width: 220px;
+        }
+        #closeOverlay:hover {
+            background: linear-gradient(90deg, #2566d6 0%, #4f8cff 100%);
+            transform: scale(1.07);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="mode-switch">
+        <span class="switch-label">Dark Mode</span>
+        <label class="switch">
+            <input type="checkbox" id="modeToggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+    <h1>Virtueles Konfi-Heftle</h1>
+    <button id="scanBtn" class="scan-btn">QR-Code scannen</button>
+    <div class="tables-row">
+        <table id="stempelTable1">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="1" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="2" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="3" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="4" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable2">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="5" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="6" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="7" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="8" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable3">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="9" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="10" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="11" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="12" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable4">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="13" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="14" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="15" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="16" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable5">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="17" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="18" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="19" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="20" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable6">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="21" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="22" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="23" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="24" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable7">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="25" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="26" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="27" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="28" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+        <table id="stempelTable8">
+            <tr class="empty-row">
+                <td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="text" class="datum-input" data-index="29" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="30" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="31" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="32" placeholder="Datum:" /></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div id="qrOverlay">
+    <div id="qr-reader"></div>
+    <div id="qr-error" style="color: #fff; margin-top: 10px;"></div>
+    <button id="closeOverlay">Schließen</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    (function() {
+        const stempelImg = 'stempel.png';
+        function renderStempel() {
+            const stempel = Number(localStorage.getItem('Stempel')) || 0;
+            const cells = document.querySelectorAll('.stempel-cell');
+            cells.forEach((cell, i) => {
+                cell.innerHTML = i < stempel ? `<img src="${stempelImg}" alt="Stempel" />` : '';
+            });
+        }
+        function renderDatumInputs() {
+            document.querySelectorAll('.datum-input').forEach(input => {
+                const idx = input.getAttribute('data-index');
+                input.value = localStorage.getItem('datum_' + idx) || '';
+                input.onchange = function() {
+                    localStorage.setItem('datum_' + idx, input.value);
+                };
+            });
+        }
+        function setTodayDatum(index) {
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('de-DE');
+            localStorage.setItem('datum_' + index, dateStr);
+            const input = document.querySelector('.datum-input[data-index="' + index + '"]');
+            if (input) input.value = dateStr;
+        }
+        renderStempel();
+        renderDatumInputs();
+        const scanBtn = document.getElementById('scanBtn');
+        const qrOverlay = document.getElementById('qrOverlay');
+        const closeOverlay = document.getElementById('closeOverlay');
+        const qrError = document.getElementById('qr-error');
+        let html5QrCode;
+        scanBtn.onclick = function() {
+            qrOverlay.style.display = 'flex';
+            qrError.textContent = '';
+            document.getElementById('qr-reader').innerHTML = '';
+            if (typeof Html5Qrcode === 'undefined') {
+                qrError.textContent = 'QR-Bibliothek nicht geladen. Prüfe die Internetverbindung oder die CDN-URL.';
+                return;
+            }
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader");
+            }
+            Html5Qrcode.getCameras().then(cameras => {
+                let backCam = cameras.find(cam => cam.label.toLowerCase().includes('back') || cam.label.toLowerCase().includes('rück') || cam.label.toLowerCase().includes('rear'));
+                let camId = backCam ? backCam.id : (cameras[0] ? cameras[0].id : { facingMode: "environment" });
+                html5QrCode.start(
+                    camId,
+                    { fps: 10, qrbox: 300 },
+                    qrCodeSuccessCallback,
+                    errorMessage => {
+                        qrError.textContent = '\nHalte den QR-Code mittig und ruhig ins Kamerabild.';
+                    }
+                ).catch(err => {
+                    qrError.textContent = 'Kamera konnte nicht gestartet werden: ' + err;
+                });
+            }).catch(err => {
+                qrError.textContent = 'Kamera-Zugriff verweigert oder nicht möglich: ' + err;
+            });
+        };
+        closeOverlay.onclick = function() {
+            qrOverlay.style.display = 'none';
+            qrError.textContent = '';
+            if (html5QrCode) {
+                html5QrCode.stop().catch(()=>{});
+            }
+        };
+        window.testScan = function(value) {
+            qrCodeSuccessCallback(value);
+        };
+        function qrCodeSuccessCallback(decodedText) {
+            let value = Number(decodedText);
+            let stempel = Number(localStorage.getItem('Stempel')) || 0;
+            let newStempel = stempel + value;
+            localStorage.setItem('Stempel', newStempel);
+            renderStempel();
+            setTodayDatum(newStempel);
+            console.log('QR-Code erkannt: ' + decodedText + '\nNeuer Wert: ' + newStempel);
+            qrOverlay.style.display = 'none';
+            qrError.textContent = '';
+            if (html5QrCode) {
+                html5QrCode.stop().catch(()=>{});
+            }
+        }
+        window.clearStempel = function() {
+            localStorage.removeItem('Stempel');
+            for(let i=1;i<=32;i++) localStorage.removeItem('datum_' + i);
+            renderStempel();
+            renderDatumInputs();
+            console.log('Stempel und Daten wurden gelöscht.');
+        };
+    })();
+    const modeToggle = document.getElementById('modeToggle');
+    modeToggle.addEventListener('change', function() {
+        document.body.classList.toggle('dark', modeToggle.checked);
+        localStorage.setItem('mode', modeToggle.checked ? 'dark' : 'light');
+    });
+    if(localStorage.getItem('mode') === 'dark') {
+        document.body.classList.add('dark');
+        modeToggle.checked = true;
+    }
+</script>
+</body>
+</html>

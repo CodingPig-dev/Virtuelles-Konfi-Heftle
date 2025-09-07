@@ -133,7 +133,7 @@
     const closeOverlay=document.getElementById('closeOverlay');
     const qrError=document.getElementById('qr-error');
     let html5QrCode;
-    let beta=true; // Setze auf false für echten Sonntag-Check
+    let beta=false; // Setze auf false für echten Sonntag-Check
     function isSunday(){return(new Date()).getDay()===0;}
     function todayStr(){let d=new Date();return d.toISOString().slice(0,10);}
     function handleScan(decodedText){

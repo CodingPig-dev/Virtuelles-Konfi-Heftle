@@ -1,0 +1,420 @@
+<!--
+    Copyright 2024 CodingPig-dev
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Virtuelles Konfi-Heftle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #f9f9f9; --bg-dark: #181818; --text-light: #222; --text-dark: #eee;
+            --primary: #4f8cff; --border: #d0d0d0; --table-bg: #fff; --table-bg-dark: #222;
+        }
+        body {font-family:'Segoe UI',Arial,sans-serif;background:var(--bg-light);color:var(--text-light);margin:0;padding:0;min-height:100vh;transition:background 0.3s,color 0.3s;}
+        body.dark {background:var(--bg-dark);color:var(--text-dark);}
+        .container {max-width:900px;margin:0 auto;padding:24px 8px 40px 8px;}
+        h1 {text-align:center;font-size:2.2rem;margin-bottom:16px;letter-spacing:1px;}
+        .mode-switch {display:flex;justify-content:flex-end;align-items:center;margin-bottom:16px;}
+        .switch-label {margin-right:8px;font-size:1rem;}
+        .switch {position:relative;display:inline-block;width:50px;height:28px;}
+        .switch input {opacity:0;width:0;height:0;}
+        .slider {position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:28px;transition:.4s;}
+        .slider:before {position:absolute;content:"";height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.4s;}
+        input:checked + .slider {background:var(--primary);}
+        input:checked + .slider:before {transform:translateX(22px);}
+        .tables-row {display:flex;flex-wrap:wrap;gap:32px;justify-content:center;}
+        .tables-row table {background:var(--table-bg);border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.07);min-width:260px;max-width:320px;margin-bottom:0;transition:background 0.3s;}
+        body.dark .tables-row table {background:var(--table-bg-dark);}
+        th,td {border:1px solid var(--border);padding:10px 6px;text-align:center;font-size:1rem;}
+        tr.empty-row td {height:60px;background:#f3f6fa;}
+        body.dark tr.empty-row td {background:#222;}
+        .stempel-cell img {max-width:40px;max-height:40px;display:block;margin:0 auto;}
+        .datum-input {width:90%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);font-size:1rem;background:#f7f7f7;color:var(--text-light);transition:background 0.3s,color 0.3s;}
+        body.dark .datum-input {background:#222;color:var(--text-dark);border:1px solid #444;}
+        #scanBtn {display:block;margin:24px auto 32px auto;padding:18px 48px;font-size:1.5rem;border-radius:18px;border:none;background:linear-gradient(90deg,#4f8cff 0%,#2566d6 100%);color:#fff;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.13);font-weight:600;letter-spacing:1px;transition:background 0.2s,transform 0.2s;min-width:220px;}
+        #scanBtn:hover {background:linear-gradient(90deg,#2566d6 0%,#4f8cff 100%);transform:scale(1.07);box-shadow:0 6px 24px rgba(0,0,0,0.18);}
+        @media (max-width:900px){.container{max-width:100%;padding:12px 2px 24px 2px;}.tables-row{gap:16px;}}
+        @media (max-width:600px){h1{font-size:1.3rem;}.tables-row{flex-direction:column;gap:24px;}.tables-row table{min-width:98vw;max-width:98vw;}#closeOverlay{min-width:90vw;font-size:1.2rem;padding:16px 0;}#scanBtn{min-width:90vw;font-size:1.2rem;padding:16px 0;}}
+        #qrOverlay {display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:1000;justify-content:center;align-items:center;flex-direction:column;padding:0;}
+        #qr-reader {width:90vw;max-width:400px;margin:0 auto;}
+        #qr-error {color:#fff;margin-top:10px;font-size:1.1rem;}
+        #closeOverlay {margin-top:32px;padding:18px 48px;font-size:1.5rem;border-radius:18px;border:none;background:linear-gradient(90deg,#4f8cff 0%,#2566d6 100%);color:#fff;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.13);font-weight:600;letter-spacing:1px;transition:background 0.2s,transform 0.2s;min-width:220px;}
+        #closeOverlay:hover {background:linear-gradient(90deg,#2566d6 0%,#4f8cff 100%);transform:scale(1.07);box-shadow:0 6px 24px rgba(0,0,0,0.18);}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="mode-switch"><span class="switch-label">Dark Mode</span>
+        <label class="switch"><input type="checkbox" id="modeToggle"><span class="slider"></span></label>
+    </div>
+    <h1>Virtueles Konfi-Heftle</h1>
+    <button id="scanBtn" class="scan-btn">QR-Code scannen</button>
+    <div class="tables-row">
+        <table id="stempelTable1">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="1" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="2" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="3" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="4" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable2">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="5" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="6" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="7" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="8" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable3">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="9" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="10" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="11" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="12" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable4">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="13" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="14" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="15" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="16" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable5">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="17" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="18" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="19" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="20" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable6">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="21" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="22" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="23" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="24" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable7">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="25" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="26" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="27" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="28" placeholder="Datum:" /></td></tr>
+        </table>
+        <table id="stempelTable8">
+            <tr class="empty-row"><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td><td class="stempel-cell"></td></tr>
+            <tr><td><input type="text" class="datum-input" data-index="29" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="30" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="31" placeholder="Datum:" /></td><td><input type="text" class="datum-input" data-index="32" placeholder="Datum:" /></td></tr>
+        </table>
+    </div>
+</div>
+<div id="qrOverlay">
+    <div id="qr-reader"></div>
+    <div id="qr-error" style="color:#fff;margin-top:10px;"></div>
+    <button id="closeOverlay">Schließen</button>
+</div>
+    <!-- Drawing Modal -->
+    <div id="drawModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2000;justify-content:center;align-items:center;flex-direction:column;">
+        <div style="background:#fff;padding:24px;border-radius:16px;max-width:98vw;max-height:98vh;display:flex;flex-direction:column;align-items:center;">
+            <h2 id="drawModalTitle" style="margin-bottom:12px;">Feld zeichnen</h2>
+            <canvas id="drawCanvas" width="400" height="400" style="border:2px solid #4f8cff;background:#f9f9f9;margin-bottom:16px;touch-action:none;"></canvas>
+            <div style="display:flex;gap:16px;">
+                <button id="drawBackBtn">Zurück</button>
+                <button id="drawSaveBtn">Fertig</button>
+                <button id="drawDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="footer-links">
+            <a href="impressum.html">Imprint</a> |
+            <a href="datenschutz.html">Privacy Policy</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2025 ETME - TECH
+        </div>
+        </footer>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function(){
+    const stempelImg='stempel.png';
+    function renderStempel(){
+        const stempel=Number(localStorage.getItem('Stempel'))||0;
+        const cells=document.querySelectorAll('.stempel-cell');
+        let emptyIndices = [];
+        cells.forEach((cell, i) => {
+            if (!localStorage.getItem('draw_' + i)) {
+                emptyIndices.push(i);
+            }
+        });
+        // Only render as many stempels as min(stempel, empty cells)
+        let maxStempel = Math.min(stempel, emptyIndices.length);
+        let stempelRendered = 0;
+        cells.forEach((cell,i)=>{
+            const drawKey = 'draw_'+i;
+            const drawData = localStorage.getItem(drawKey);
+            if(drawData){
+                cell.innerHTML = `<img src="${drawData}" alt="Zeichnung" style="max-width:40px;max-height:40px;display:block;margin:0 auto;" />`;
+                cell.classList.add('drawn');
+            }else if(stempelRendered < maxStempel && emptyIndices[stempelRendered] === i){
+                cell.innerHTML = `<img src="stempel.png" alt="Stempel" />`;
+                cell.classList.remove('drawn');
+                stempelRendered++;
+            }else{
+                cell.innerHTML = '';
+                cell.classList.remove('drawn');
+            }
+        });
+        attachDrawListeners();
+    }
+    function attachDrawListeners(){
+        const stempel = Number(localStorage.getItem('Stempel')) || 0;
+        document.querySelectorAll('.stempel-cell').forEach((cell,i)=>{
+            const drawKey = 'draw_'+i;
+            const drawData = localStorage.getItem(drawKey);
+            if(drawData || (!drawData && i >= stempel)){
+                cell.ondblclick = ()=>{
+                    openDrawModal(i);
+                };
+                cell.style.cursor = 'pointer';
+            }else{
+                cell.ondblclick = null;
+                cell.style.cursor = 'not-allowed';
+            }
+        });
+    }
+    function renderDatumInputs(){
+        document.querySelectorAll('.datum-input').forEach(input=>{
+            const idx=input.getAttribute('data-index');
+            input.value=localStorage.getItem('datum_'+idx)||'';
+            input.onchange=function(){localStorage.setItem('datum_'+idx,input.value);};
+        });
+    }
+    function setTodayDatum(index){
+        const today=new Date();
+        const dateStr=today.toLocaleDateString('de-DE');
+        localStorage.setItem('datum_'+index,dateStr);
+        const input=document.querySelector('.datum-input[data-index="'+index+'"]');
+        if(input)input.value=dateStr;
+    }
+    renderStempel();
+    renderDatumInputs();
+    attachDrawListeners();
+    const scanBtn=document.getElementById('scanBtn');
+    const qrOverlay=document.getElementById('qrOverlay');
+    const closeOverlay=document.getElementById('closeOverlay');
+    const qrError=document.getElementById('qr-error');
+    let html5QrCode;
+    let beta=false;
+    function isSunday(){return(new Date()).getDay()===0;}
+    function todayStr(){let d=new Date();return d.toISOString().slice(0,10);}
+    function handleScan(decodedText){
+        console.log('handleScan called with:', decodedText);
+        let val=decodedText.trim();
+        let stempel=Number(localStorage.getItem('Stempel'))||0;
+        let today=todayStr();
+        console.log('Current stempel:', stempel);
+        if(val.startsWith("nachholen+")){
+            let nachNum=val.slice(10);
+            console.log('nachholen detected, nachNum:', nachNum);
+            if(/^[+-]?\d+$/.test(nachNum)){
+                let addVal=Number(nachNum);
+                console.log('addVal:', addVal);
+                for(let j=0;j<addVal;j++){
+                    let idx = getNextEmptyCellIdx();
+                    console.log('getNextEmptyCellIdx:', idx);
+                    if(idx !== -1){
+                        stempel++;
+                        localStorage.setItem('Stempel',stempel);
+                        console.log('Stempel incremented:', stempel);
+                    }
+                }
+                renderStempel();
+                setTodayDatum(stempel);
+                qrOverlay.style.display='none';
+                if(html5QrCode){html5QrCode.stop().catch(()=>{});}
+                return;
+            }
+            qrError.textContent="Nachholen ungültig.";
+            return;
+        }
+        if(!beta&&!isSunday()){
+            console.log('Not Sunday and not beta, aborting scan');
+            qrError.textContent="Schummel nicht";
+            alert("Schummel nicht");
+            return;
+        }
+        if(/^[+-]?\d+$/.test(val)){
+            let last=localStorage.getItem("last");
+            console.log('QR value is number, last:', last, 'today:', today);
+            if(!last||last<today){
+                let addVal=Number(val);
+                console.log('addVal:', addVal);
+                // Only add stamps to empty cells
+                for(let j=0;j<addVal;j++){
+                    let idx = getNextEmptyCellIdx();
+                    console.log('getNextEmptyCellIdx:', idx);
+                    if(idx !== -1){
+                        stempel++;
+                        localStorage.setItem('Stempel',stempel);
+                        console.log('Stempel incremented:', stempel);
+                    }
+                }
+                renderStempel();
+                setTodayDatum(stempel);
+                localStorage.setItem("last",today);
+                qrOverlay.style.display='none';
+                if(html5QrCode){html5QrCode.stop().catch(()=>{});}
+                return;
+            }else{
+                console.log('Already scanned today');
+                qrError.textContent="Heute schon gezählt!";
+                localStorage.setItem("last",today);
+                return;
+            }
+        }
+        console.log('Ungültiger QR-Code:', val);
+        qrError.textContent="Ungültiger QR-Code.";
+    }
+    scanBtn.onclick=function(){
+        qrOverlay.style.display='flex';qrError.textContent='';document.getElementById('qr-reader').innerHTML='';
+        if(typeof Html5Qrcode==='undefined'){qrError.textContent='QR-Bibliothek nicht geladen. Prüfe die Internetverbindung oder die CDN-URL.';return;}
+        if(!html5QrCode){html5QrCode=new Html5Qrcode("qr-reader");}
+        Html5Qrcode.getCameras().then(cameras=>{
+            let backCam=cameras.find(cam=>cam.label.toLowerCase().includes('back')||cam.label.toLowerCase().includes('rück')||cam.label.toLowerCase().includes('rear'));
+            let camId=backCam?backCam.id:(cameras[0]?cameras[0].id:{facingMode:"environment"});
+            html5QrCode.start(
+                camId,
+                {fps:10,qrbox:300},
+                qrCodeSuccessCallback,
+                errorMessage=>{qrError.textContent='\nHalte den QR-Code mittig und ruhig ins Kamerabild.';}
+            ).catch(err=>{qrError.textContent='Kamera konnte nicht gestartet werden: '+err;});
+        }).catch(err=>{qrError.textContent='Kamera-Zugriff verweigert oder nicht möglich: '+err;});
+    };
+    closeOverlay.onclick=function(){
+        qrOverlay.style.display='none';qrError.textContent='';
+        if(html5QrCode){html5QrCode.stop().catch(()=>{});}
+    };
+    window.testScan=function(value){handleScan(value);};
+    function qrCodeSuccessCallback(decodedText){handleScan(decodedText);}
+    window.clearStempel=function(){
+        localStorage.removeItem('Stempel');
+        for(let i=1;i<=32;i++)localStorage.removeItem('datum_'+i);
+        renderStempel();
+        renderDatumInputs();
+    };
+})();
+const modeToggle=document.getElementById('modeToggle');
+modeToggle.addEventListener('change',function(){
+    document.body.classList.toggle('dark',modeToggle.checked);
+    localStorage.setItem('mode',modeToggle.checked?'dark':'light');
+});
+if(localStorage.getItem('mode')==='dark'){
+    document.body.classList.add('dark');
+    modeToggle.checked=true;
+}
+// Drawing modal logic
+let currentDrawCellIdx = null;
+const drawModal = document.getElementById('drawModal');
+const drawCanvas = document.getElementById('drawCanvas');
+const drawBackBtn = document.getElementById('drawBackBtn');
+const drawSaveBtn = document.getElementById('drawSaveBtn');
+const drawDeleteBtn = document.getElementById('drawDeleteBtn');
+const ctx = drawCanvas.getContext('2d');
+let drawing = false, lastX = 0, lastY = 0;
+function openDrawModal(cellIdx){
+    currentDrawCellIdx = cellIdx;
+    drawModal.style.display = 'flex';
+    ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+    const drawKey = 'draw_'+cellIdx;
+    const drawData = localStorage.getItem(drawKey);
+    if(drawData){
+        const img = new window.Image();
+        img.onload = ()=>ctx.drawImage(img,0,0,drawCanvas.width,drawCanvas.height);
+        img.src = drawData;
+    }
+}
+function closeDrawModal(){
+    drawModal.style.display = 'none';
+    currentDrawCellIdx = null;
+}
+drawCanvas.addEventListener('mousedown',e=>{drawing=true;lastX=e.offsetX;lastY=e.offsetY;});
+drawCanvas.addEventListener('touchstart',e=>{drawing=true;const rect=drawCanvas.getBoundingClientRect();const t=e.touches[0];lastX=t.clientX-rect.left;lastY=t.clientY-rect.top;});
+drawCanvas.addEventListener('mousemove',e=>{if(drawing){ctx.lineWidth=3;ctx.lineCap='round';ctx.strokeStyle='#2566d6';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(e.offsetX,e.offsetY);ctx.stroke();lastX=e.offsetX;lastY=e.offsetY;}});
+drawCanvas.addEventListener('touchmove',e=>{if(drawing){e.preventDefault();const rect=drawCanvas.getBoundingClientRect();const t=e.touches[0];const x=t.clientX-rect.left;const y=t.clientY-rect.top;ctx.lineWidth=3;ctx.lineCap='round';ctx.strokeStyle='#2566d6';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(x,y);ctx.stroke();lastX=x;lastY=y;}});
+drawCanvas.addEventListener('mouseup',()=>{drawing=false;});
+drawCanvas.addEventListener('mouseleave',()=>{drawing=false;});
+drawCanvas.addEventListener('touchend',()=>{drawing=false;});
+drawBackBtn.onclick=()=>closeDrawModal();
+drawSaveBtn.onclick=()=>{
+    if(currentDrawCellIdx!==null){
+        const drawKey = 'draw_'+currentDrawCellIdx;
+        const dataUrl = drawCanvas.toDataURL('image/png');
+        const wasEmpty = !localStorage.getItem(drawKey) && currentDrawCellIdx >= (Number(localStorage.getItem('Stempel')) || 0);
+        localStorage.setItem(drawKey,dataUrl);
+        if(wasEmpty){
+            let stempel = Number(localStorage.getItem('Stempel')) || 0;
+            stempel++;
+            localStorage.setItem('Stempel', stempel);
+        }
+        closeDrawModal();
+        setTimeout(()=>location.reload(), 100);
+    }
+};
+drawDeleteBtn.onclick=()=>{
+    if(currentDrawCellIdx!==null){
+        const drawKey = 'draw_'+currentDrawCellIdx;
+        localStorage.removeItem(drawKey);
+        let stempel = Number(localStorage.getItem('Stempel')) || 0;
+        if(currentDrawCellIdx < stempel && stempel > 0){
+            stempel--;
+            localStorage.setItem('Stempel', stempel);
+        }
+        closeDrawModal();
+        setTimeout(()=>location.reload(), 100);
+    }
+};
+function attachDrawListeners(){
+    const stempel = Number(localStorage.getItem('Stempel')) || 0;
+    document.querySelectorAll('.stempel-cell').forEach((cell,i)=>{
+        const drawKey = 'draw_'+i;
+        const drawData = localStorage.getItem(drawKey);
+        // Allow drawing if cell is empty or already has a drawing
+        if(drawData || (!drawData && i >= stempel)){
+            cell.ondblclick = ()=>{
+                openDrawModal(i);
+            };
+            cell.style.cursor = 'pointer';
+        }else{
+            // Cell has a stamp, do not allow drawing
+            cell.ondblclick = null;
+            cell.style.cursor = 'not-allowed';
+        }
+    });
+}
+attachDrawListeners();
+// Prevent stamp if drawing exists
+document.querySelectorAll('.stempel-cell').forEach((cell,i)=>{
+    const drawKey = 'draw_'+i;
+    const drawData = localStorage.getItem(drawKey);
+    if(drawData){
+        cell.classList.add('drawn');
+    }
+});
+function getFullCellCount() {
+    // Counts all cells that are either stamped or drawn
+    const cells = document.querySelectorAll('.stempel-cell');
+    let count = 0;
+    for (let i = 0; i < cells.length; i++) {
+        const drawKey = 'draw_' + i;
+        const drawData = localStorage.getItem(drawKey);
+        if (drawData || i < (Number(localStorage.getItem('Stempel')) || 0)) {
+            count++;
+        }
+    }
+    return count;
+}
+function getNextEmptyCellIdx() {
+    const cells = document.querySelectorAll('.stempel-cell');
+    for (let i = 0; i < cells.length; i++) {
+        const drawKey = 'draw_' + i;
+        const drawData = localStorage.getItem(drawKey);
+        if (!drawData) {
+            return i;
+        }
+    }
+    return -1;
+}
+</script>
+</body>
+</html>

@@ -137,7 +137,6 @@
                 emptyIndices.push(i);
             }
         });
-        // Only render as many stempels as min(stempel, empty cells)
         let maxStempel = Math.min(stempel, emptyIndices.length);
         let stempelRendered = 0;
         cells.forEach((cell,i)=>{
@@ -149,6 +148,10 @@
             }else if(stempelRendered < maxStempel && emptyIndices[stempelRendered] === i){
                 cell.innerHTML = `<img src="stempel.png" alt="Stempel" />`;
                 cell.classList.remove('drawn');
+                const datumKey = 'datum_' + (i + 1);
+                if(!localStorage.getItem(datumKey)){
+                    setTodayDatum(i + 1);
+                }
                 stempelRendered++;
             }else{
                 cell.innerHTML = '';
@@ -217,10 +220,10 @@
                         stempel++;
                         localStorage.setItem('Stempel',stempel);
                         console.log('Stempel incremented:', stempel);
+                        setTodayDatum(idx + 1);
                     }
                 }
                 renderStempel();
-                setTodayDatum(stempel);
                 qrOverlay.style.display='none';
                 if(html5QrCode){html5QrCode.stop().catch(()=>{});}
                 return;
@@ -240,7 +243,6 @@
             if(!last||last<today){
                 let addVal=Number(val);
                 console.log('addVal:', addVal);
-                // Only add stamps to empty cells
                 for(let j=0;j<addVal;j++){
                     let idx = getNextEmptyCellIdx();
                     console.log('getNextEmptyCellIdx:', idx);
@@ -251,7 +253,6 @@
                     }
                 }
                 renderStempel();
-                setTodayDatum(stempel);
                 localStorage.setItem("last",today);
                 qrOverlay.style.display='none';
                 if(html5QrCode){html5QrCode.stop().catch(()=>{});}
@@ -303,7 +304,6 @@ if(localStorage.getItem('mode')==='dark'){
     document.body.classList.add('dark');
     modeToggle.checked=true;
 }
-// Drawing modal logic
 let currentDrawCellIdx = null;
 const drawModal = document.getElementById('drawModal');
 const drawCanvas = document.getElementById('drawCanvas');
@@ -340,13 +340,13 @@ drawSaveBtn.onclick=()=>{
     if(currentDrawCellIdx!==null){
         const drawKey = 'draw_'+currentDrawCellIdx;
         const dataUrl = drawCanvas.toDataURL('image/png');
-        const wasEmpty = !localStorage.getItem(drawKey) && currentDrawCellIdx >= (Number(localStorage.getItem('Stempel')) || 0);
         localStorage.setItem(drawKey,dataUrl);
-        if(wasEmpty){
-            let stempel = Number(localStorage.getItem('Stempel')) || 0;
-            stempel++;
-            localStorage.setItem('Stempel', stempel);
-        }
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('de-DE');
+        const datumKey = 'datum_' + (currentDrawCellIdx + 1);
+        localStorage.setItem(datumKey, dateStr);
+        const input = document.querySelector('.datum-input[data-index="' + (currentDrawCellIdx + 1) + '"]');
+        if (input) input.value = dateStr;
         closeDrawModal();
         setTimeout(()=>location.reload(), 100);
     }
@@ -355,11 +355,7 @@ drawDeleteBtn.onclick=()=>{
     if(currentDrawCellIdx!==null){
         const drawKey = 'draw_'+currentDrawCellIdx;
         localStorage.removeItem(drawKey);
-        let stempel = Number(localStorage.getItem('Stempel')) || 0;
-        if(currentDrawCellIdx < stempel && stempel > 0){
-            stempel--;
-            localStorage.setItem('Stempel', stempel);
-        }
+        localStorage.removeItem('datum_' + (currentDrawCellIdx + 1));
         closeDrawModal();
         setTimeout(()=>location.reload(), 100);
     }
@@ -369,14 +365,12 @@ function attachDrawListeners(){
     document.querySelectorAll('.stempel-cell').forEach((cell,i)=>{
         const drawKey = 'draw_'+i;
         const drawData = localStorage.getItem(drawKey);
-        // Allow drawing if cell is empty or already has a drawing
         if(drawData || (!drawData && i >= stempel)){
             cell.ondblclick = ()=>{
                 openDrawModal(i);
             };
             cell.style.cursor = 'pointer';
         }else{
-            // Cell has a stamp, do not allow drawing
             cell.ondblclick = null;
             cell.style.cursor = 'not-allowed';
         }
@@ -392,7 +386,6 @@ document.querySelectorAll('.stempel-cell').forEach((cell,i)=>{
     }
 });
 function getFullCellCount() {
-    // Counts all cells that are either stamped or drawn
     const cells = document.querySelectorAll('.stempel-cell');
     let count = 0;
     for (let i = 0; i < cells.length; i++) {
@@ -406,10 +399,11 @@ function getFullCellCount() {
 }
 function getNextEmptyCellIdx() {
     const cells = document.querySelectorAll('.stempel-cell');
+    const stempel = Number(localStorage.getItem('Stempel')) || 0;
     for (let i = 0; i < cells.length; i++) {
         const drawKey = 'draw_' + i;
         const drawData = localStorage.getItem(drawKey);
-        if (!drawData) {
+        if (!drawData && i >= stempel) {
             return i;
         }
     }
